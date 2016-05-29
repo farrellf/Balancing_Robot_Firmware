@@ -1,5 +1,5 @@
-// Authored by Farrell Farahbod, last revised on 2014-05-20
-// This file is released into the public domain
+// Author: Farrell Farahbod <farrellfarahbod@gmail.com>
+// License: public domain
 
 #include "stm32f0xx.h"
 #include "f0lib_gpio.h"

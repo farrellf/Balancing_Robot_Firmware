@@ -1,5 +1,5 @@
-// Authored by Farrell Farahbod, last revised on 2014-05-20
-// This file is released into the public domain
+// Author: Farrell Farahbod <farrellfarahbod@gmail.com>
+// License: public domain
 
 #include "f0lib_gpio.h"
 
@@ -17,14 +17,15 @@ enum EXTI_EDGE {RISING_EDGE, FALLING_EDGE, BOTH_EDGES};
 
 /**
  * Configures an external interrupt.
- * IMPORTANT: The appropriate ISR must be defined, or code execution will halt as soon as an interrupt occurs!
  * EXTI0 can be pin 0 of any gpio port, EXTI1 can be pin 1 of any gpio port, etc.
  * You can not have interrupts for two pins with the same number but on different ports.
  *
- * @param pin		GPIO pin used as an external interrupt
- * @param edge		trigger on rising, falling, or both edges
+ * @param pin       GPIO pin used as an external interrupt
+ * @param pull      NO_PULL or PULL_UP or PULL_DOWN
+ * @param edge      RISING_EDGE or FALLING_EDGE or BOTH_EDGES
+ * @param handler   Pointer to an event handler function
  */
-void exti_setup(enum GPIO_PIN pin, enum EXTI_EDGE edge);
+void exti_setup(enum GPIO_PIN pin, enum GPIO_PULL pull, enum EXTI_EDGE edge, void (*handler)(void));
 
 /**
  * Manually trigger an external interrupt.

@@ -1,6 +1,5 @@
-// Written by Farrell Farahbod
-// Last revised on 2014-07-01
-// This file is released into the public domain
+// Author: Farrell Farahbod <farrellfarahbod@gmail.com>
+// License: public domain
 
 /**
  * An easy-to-use library for the STM32F0.
@@ -18,8 +17,6 @@
 #include "f0lib_i2c.h"
 #include "f0lib_rs232.h"
 #include "f0lib_converters.h"
-#include "f0lib_gyro_l3gd20.h"
-#include "f0lib_accel_magn_lsm303dlhc.h"
 #include "f0lib_exti.h"
 #include "f0lib_timers.h"
 #include "f0lib_adc.h"
