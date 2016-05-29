@@ -1,0 +1,39 @@
+F0LIB is my collection of any remotely reuseable code for the STM32F0. It's not yet ready for sharing but since it was used in this project I'm including the code. It's not very clean, efficient or thoroughly tested. Use with caution.
+
+The library is broken up into several pieces:
+
+f0lib_accel_magn_lsm303dlhc
+	For the STM LSM303DLHC 3-axis accelerometer and 3-axis magnetometer.
+
+f0lib_adc
+	For the built-in ADC
+
+f0lib_converters
+	Basic functions for converting between different data formats
+
+f0lib_debug
+	Basic wrapper functions to allow for quickly enabling or disabling debug code
+
+f0lib_exti
+	For the built-in interrupts
+
+f0lib_gpio
+	For enabling and configuring GPIOs
+
+f0lib_gyro_l3gd20
+	For the STM L3GD20 3-axis gyro
+
+f0lib_i2c
+	For the built-in I2C interface
+
+f0lib_rf_cc2500
+	For the TI CC2500 2.4GHz RF chip
+
+f0lib_rs232
+	For configuring a USART for RS232 usage
+
+f0lib_spi
+	For the built-in SPI interface
+
+f0lib_timers
+	For the built-in timers
