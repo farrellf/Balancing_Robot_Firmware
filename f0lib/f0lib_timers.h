@@ -71,6 +71,24 @@ enum TIMER_CHANNEL {CH1, CH2, CH3, CH4};
 #endif
 
 /**
+ * Configure one of the 4-channel timers for controlling dual h-bridges.
+ *
+ * @param ch1_pin   Pin for channel 1
+ * @param ch2_pin   Pin for channel 2
+ * @param ch3_pin   Pin for channel 3
+ * @param ch4_pin   Pin for channel 4
+ */
+void timer_dual_hbridge_setup(enum GPIO_PIN ch1_pin, enum GPIO_PIN ch2_pin, enum GPIO_PIN ch3_pin, enum GPIO_PIN ch4_pin);
+
+/**
+ * Updates the PWM values for the dual h-bridge.
+ *
+ * @param motor_a_speed   -1000 to +1000
+ * @param motor_b_speed   -1000 to +1000
+ */
+void timer_dual_hbridge_motor_speeds(int32_t motor_a_speed, int32_t motor_b_speed);
+
+/**
  * Configure a timer for PWM output. All channels of the same timer share the same period.
  * Channel outputs default to a duty cycle of 0%.
  *

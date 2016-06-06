@@ -9,6 +9,12 @@
 #define MPU6050_ADDRESS  0b1101000
 #define HMC5883L_ADDRESS 0b0011110
 
+// offsets calculated at power up
+static int16_t gyro_x_offset = 0;
+static int16_t gyro_y_offset = 0;
+static int16_t gyro_z_offset = 0;
+static uint32_t samples = 0;
+
 I2C_TypeDef *i2c;
 void (*event_handler)(float gyro_x, float gyro_y, float gyro_z, float accel_x, float accel_y, float accel_z, float magn_x, float magn_y, float magn_z);
 
@@ -29,6 +35,27 @@ static void mpu6050_hmc5883l_read_sensors(void) {
 	int16_t  magn_x_raw   = rx_buffer[14] << 8 | rx_buffer[15];
 	int16_t  magn_y_raw   = rx_buffer[16] << 8 | rx_buffer[17];
 	int16_t  magn_z_raw   = rx_buffer[18] << 8 | rx_buffer[19];
+
+	// calculate the offsets at power up
+	if(samples < 64) {
+		samples++;
+		return;
+	} else if(samples < 128) {
+		gyro_x_offset += gyro_x_raw;
+		gyro_y_offset += gyro_y_raw;
+		gyro_z_offset += gyro_z_raw;
+		samples++;
+		return;
+	} else if(samples == 128) {
+		gyro_x_offset /= 64;
+		gyro_y_offset /= 64;
+		gyro_z_offset /= 64;
+		samples++;
+	} else {
+		gyro_x_raw -= gyro_x_offset;
+		gyro_y_raw -= gyro_y_offset;
+		gyro_z_raw -= gyro_z_offset;
+	}
 
 	// convert accelerometer readings into G's
 	float accel_x = accel_x_raw / 8192.0f;

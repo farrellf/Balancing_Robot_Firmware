@@ -26,5 +26,6 @@
 #include "f0lib_lcd_tft1p4705.h"
 #include "f0lib_lcd_ili9163.h"
 #include "f0lib_flash.h"
+#include "f0lib_uart.h"
 
 #endif

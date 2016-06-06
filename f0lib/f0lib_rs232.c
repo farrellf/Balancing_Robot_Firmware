@@ -26,7 +26,7 @@ void rs232_setup(USART_TypeDef *usart, enum GPIO_PIN tx, uint32_t baud) {
 	usart->CR1 = 0;
 	usart->CR2 = 0;
 	usart->CR3 = 0;
-	usart->BRR = 48000000L / baud;
+	usart->BRR = SystemCoreClock / baud;
 	usart->GTPR = 0;
 	usart->RTOR = 0;
 	usart->RQR = 0;

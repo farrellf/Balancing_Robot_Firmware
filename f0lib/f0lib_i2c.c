@@ -101,18 +101,47 @@ void i2c_write_register(I2C_TypeDef *i2c, uint8_t i2c_address, uint8_t reg, uint
  */
 void i2c_read_registers(I2C_TypeDef *i2c, uint8_t i2c_address, uint8_t byte_count, uint8_t first_reg, uint8_t *rx_buffer) {
 
+	uint8_t *ptr = rx_buffer;
+
 	// write one byte (the register number) with a start bit but no stop bit
 	i2c->CR2 = (i2c_address << 1) | I2C_CR2_START | (1 << 16);
-	while((i2c->ISR & I2C_ISR_TXIS) == 0);
+	while((i2c->ISR & I2C_ISR_TXIS) == 0)
+		if((i2c->ISR & I2C_ISR_NACKF) || (i2c->ISR & I2C_ISR_STOPF) || (i2c->ISR & I2C_ISR_ARLO)) {
+			i2c->CR1 &= ~I2C_CR1_PE;
+			__NOP();
+			__NOP();
+			__NOP();
+			i2c->CR1 |= I2C_CR1_PE;
+			i2c_read_registers(i2c, i2c_address, byte_count, first_reg, rx_buffer);
+			return;
+		}
 	i2c->TXDR = first_reg;
-	while((i2c->ISR & I2C_ISR_TC) == 0);
+	while((i2c->ISR & I2C_ISR_TC) == 0)
+		if((i2c->ISR & I2C_ISR_NACKF) || (i2c->ISR & I2C_ISR_STOPF) || (i2c->ISR & I2C_ISR_ARLO)) {
+			i2c->CR1 &= ~I2C_CR1_PE;
+			__NOP();
+			__NOP();
+			__NOP();
+			i2c->CR1 |= I2C_CR1_PE;
+			i2c_read_registers(i2c, i2c_address, byte_count, first_reg, rx_buffer);
+			return;
+		}
 
 	// read the specified number of bytes with a start bit and a stop bit
 	i2c->CR2 = (i2c_address << 1) | I2C_CR2_RD_WRN | I2C_CR2_START | I2C_CR2_AUTOEND | (byte_count << 16);
 
 	// wait for the bytes to arrive
 	while(byte_count-- > 0) {
-		while((i2c->ISR & I2C_ISR_RXNE) == 0);
+		while((i2c->ISR & I2C_ISR_RXNE) == 0)
+			if((i2c->ISR & I2C_ISR_NACKF) || (i2c->ISR & I2C_ISR_STOPF) || (i2c->ISR & I2C_ISR_ARLO)) {
+				i2c->CR1 &= ~I2C_CR1_PE;
+				__NOP();
+				__NOP();
+				__NOP();
+				i2c->CR1 |= I2C_CR1_PE;
+				i2c_read_registers(i2c, i2c_address, byte_count, first_reg, ptr);
+				return;
+			}
 		*rx_buffer++ = i2c->RXDR;
 	}
 }

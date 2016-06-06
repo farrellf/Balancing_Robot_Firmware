@@ -6,6 +6,141 @@
 #include "core_cm0.h"
 #include "stm32f0xx.h"
 
+
+static TIM_TypeDef *hbridge_timer;
+
+/**
+ * Configure one of the 4-channel timers for controlling dual h-bridges.
+ *
+ * @param ch1_pin   Pin for channel 1
+ * @param ch2_pin   Pin for channel 2
+ * @param ch3_pin   Pin for channel 3
+ * @param ch4_pin   Pin for channel 4
+ */
+void timer_dual_hbridge_setup(enum GPIO_PIN ch1_pin, enum GPIO_PIN ch2_pin, enum GPIO_PIN ch3_pin, enum GPIO_PIN ch4_pin) {
+
+	if(ch1_pin == PA8)
+		hbridge_timer = TIM1;
+	else if(ch1_pin == PA0 || ch1_pin == PA5 || ch1_pin == PA15)
+		hbridge_timer = TIM2;
+	else if(ch1_pin == PA6 || ch1_pin == PC6 || ch1_pin == PB4)
+		hbridge_timer = TIM3;
+	else
+		return;
+
+	// configure the GPIOs
+	if(hbridge_timer == TIM1 || hbridge_timer == TIM2) {
+		gpio_setup(ch1_pin, AF, PUSH_PULL, FIFTY_MHZ, NO_PULL, AF2);
+		gpio_setup(ch2_pin, AF, PUSH_PULL, FIFTY_MHZ, NO_PULL, AF2);
+		gpio_setup(ch3_pin, AF, PUSH_PULL, FIFTY_MHZ, NO_PULL, AF2);
+		gpio_setup(ch4_pin, AF, PUSH_PULL, FIFTY_MHZ, NO_PULL, AF2);
+	} else {
+		gpio_setup(ch1_pin, AF, PUSH_PULL, FIFTY_MHZ, NO_PULL, AF1);
+		gpio_setup(ch2_pin, AF, PUSH_PULL, FIFTY_MHZ, NO_PULL, AF1);
+		gpio_setup(ch3_pin, AF, PUSH_PULL, FIFTY_MHZ, NO_PULL, AF1);
+		gpio_setup(ch4_pin, AF, PUSH_PULL, FIFTY_MHZ, NO_PULL, AF1);
+	}
+
+	// enable timer clock and reset the timer
+	if(hbridge_timer == TIM1) {
+		RCC->APB2ENR  |=  RCC_APB2ENR_TIM1EN;
+		RCC->APB2RSTR |=  RCC_APB2RSTR_TIM1RST;
+		RCC->APB2RSTR &= ~RCC_APB2RSTR_TIM1RST;
+	} else if(hbridge_timer == TIM2) {
+		RCC->APB1ENR  |=  RCC_APB1ENR_TIM2EN;
+		RCC->APB1RSTR |=  RCC_APB1RSTR_TIM2RST;
+		RCC->APB1RSTR &= ~RCC_APB1RSTR_TIM2RST;
+	} else if(hbridge_timer == TIM3) {
+		RCC->APB1ENR  |=  RCC_APB1ENR_TIM3EN;
+		RCC->APB1RSTR |=  RCC_APB1RSTR_TIM3RST;
+		RCC->APB1RSTR &= ~RCC_APB1RSTR_TIM3RST;
+	}
+
+	// prescaler
+	hbridge_timer->PSC = 1;
+
+	// auto-reload
+	hbridge_timer->ARR = 999;
+
+	// auto-reload preload enable
+	hbridge_timer->CR1 |= TIM_CR1_ARPE;
+
+	// pwm mode for each channel
+	hbridge_timer->CCMR1 |= TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_2; // OC1M = 110 for PWM Mode 1 output on ch1
+	hbridge_timer->CCMR1 |= TIM_CCMR1_OC1PE;                     // Output 1 preload enable
+	hbridge_timer->CCER  |= TIM_CCER_CC1E;                       // Enable output for ch1
+	hbridge_timer->CCR1   = 0;                                   // 0% duty cycle for ch1
+
+	hbridge_timer->CCMR1 |= TIM_CCMR1_OC2M_1 | TIM_CCMR1_OC2M_2; // OC2M = 110 for PWM Mode 1 output on ch2
+	hbridge_timer->CCMR1 |= TIM_CCMR1_OC2PE;                     // Output 2 preload enable
+	hbridge_timer->CCER  |= TIM_CCER_CC2E;                       // Enable output for ch2
+	hbridge_timer->CCR2   = 0;                                   // 0% duty cycle for ch2
+
+	hbridge_timer->CCMR2 |= TIM_CCMR2_OC3M_1 | TIM_CCMR2_OC3M_2; // OC3M = 110 for PWM Mode 1 output on ch3
+	hbridge_timer->CCMR2 |= TIM_CCMR2_OC3PE;                     // Output 3 preload enable
+	hbridge_timer->CCER  |= TIM_CCER_CC3E;                       // Enable output for ch3
+	hbridge_timer->CCR3   = 0;                                   // 0% duty cycle for ch3
+
+	hbridge_timer->CCMR2 |= TIM_CCMR2_OC4M_1 | TIM_CCMR2_OC4M_2; // OC4M = 110 for PWM Mode 1 output on ch4
+	hbridge_timer->CCMR2 |= TIM_CCMR2_OC4PE;                     // Output 4 preload enable
+	hbridge_timer->CCER  |= TIM_CCER_CC4E;                       // Enable output for ch4
+	hbridge_timer->CCR4   = 0;                                   // 0% duty cycle for ch4
+
+	// force update, then clear the update flag
+	hbridge_timer->EGR |= TIM_EGR_UG;
+	hbridge_timer->SR &= ~TIM_SR_UIF;
+
+	// disable interrupts
+	if(hbridge_timer == TIM1)
+		NVIC_DisableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
+	else if(hbridge_timer == TIM2)
+		NVIC_DisableIRQ(TIM2_IRQn);
+	else if(hbridge_timer == TIM3)
+		NVIC_DisableIRQ(TIM3_IRQn);
+
+	// enable counter
+	hbridge_timer->CR1 |= TIM_CR1_CEN;
+
+	// main output enable is only needed for advanced control timers
+	if(hbridge_timer == TIM1)
+		hbridge_timer->BDTR |= TIM_BDTR_MOE;
+
+}
+
+/**
+ * Updates the PWM values for the dual h-bridge.
+ *
+ * @param motor_a_speed   -1000 to +1000
+ * @param motor_b_speed   -1000 to +1000
+ */
+void timer_dual_hbridge_motor_speeds(int32_t motor_a_speed, int32_t motor_b_speed) {
+
+	// clip speeds to +/- 1000
+	if(motor_a_speed >  1000) motor_a_speed =  1000;
+	if(motor_b_speed >  1000) motor_b_speed =  1000;
+	if(motor_a_speed < -1000) motor_a_speed = -1000;
+	if(motor_b_speed < -1000) motor_b_speed = -1000;
+
+	// update motor a
+	if(motor_a_speed >= 0) {
+		hbridge_timer->CCR1 = 0;
+		hbridge_timer->CCR2 = motor_a_speed;
+	} else {
+		hbridge_timer->CCR1 = motor_a_speed * -1;
+		hbridge_timer->CCR2 = 0;
+	}
+
+	// update motor b
+	if(motor_b_speed >= 0) {
+		hbridge_timer->CCR3 = motor_b_speed;
+		hbridge_timer->CCR4 = 0;
+	} else {
+		hbridge_timer->CCR3 = 0;
+		hbridge_timer->CCR4 = motor_b_speed * -1;
+	}
+
+}
+
 /**
  * Configure a timer for PWM output. All channels of the same timer share the same period.
  * Channel outputs default to a duty cycle of 0%.
