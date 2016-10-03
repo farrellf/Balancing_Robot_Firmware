@@ -4,6 +4,7 @@
 #include "f0lib_uart.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 
 static USART_TypeDef *usart;
 static char uart_tx_buffer[1024] = {0};
@@ -60,14 +61,25 @@ void uart_setup(enum GPIO_PIN tx_pin, uint32_t baud) {
 
 }
 
-void uart_send_quat(float q0, float q1, float q2, float q3) { ///////////////////////
+void uart_send_csv_floats(uint8_t count, float first_value, ...) {
 
-	sprintf(uart_tx_buffer, "%2.7f %2.7f %2.7f %2.7f\n\r", q0, q1, q2, q3);
-	i = strlen(uart_tx_buffer);
+	va_list arglist;
+	va_start(arglist, first_value);
+
+	i = 0;
+	i += sprintf(&uart_tx_buffer[i], "%2.7f", first_value);
+	count--;
+
+	while(count-- > 0)
+		i += sprintf(&uart_tx_buffer[i], ",%2.7f", va_arg(arglist, double));
+
+	i += sprintf(&uart_tx_buffer[i], "\r\n");
+
 	uart_tx_via_dma();
 
-}
+	va_end(arglist);
 
+}
 
 /**
  * Effectively empties the TX buffer by placing a null character at position zero and resetting the pointer.
