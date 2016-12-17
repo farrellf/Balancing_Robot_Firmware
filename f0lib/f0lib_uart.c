@@ -81,6 +81,45 @@ void uart_send_csv_floats(uint8_t count, float first_value, ...) {
 
 }
 
+void uart_send_bin_floats(uint8_t count, float first_value, ...) {
+
+	va_list arglist;
+	va_start(arglist, first_value);
+
+	uint16_t checksum = 0;
+	char* ptr = 0;
+
+	i = 0;
+	uart_tx_buffer[i++] = 0xAA;
+	ptr = (char*) &first_value;
+	uart_tx_buffer[i++] = ptr[0];
+	uart_tx_buffer[i++] = ptr[1];
+	uart_tx_buffer[i++] = ptr[2];
+	uart_tx_buffer[i++] = ptr[3];
+	checksum += (ptr[1] << 8) | (ptr[0] << 0);
+	checksum += (ptr[3] << 8) | (ptr[2] << 0);
+	count--;
+
+	while(count-- > 0) {
+		float value = va_arg(arglist, double); // because floats are promoted to doubles when passed
+		ptr = (char*) &value;
+		uart_tx_buffer[i++] = ptr[0];
+		uart_tx_buffer[i++] = ptr[1];
+		uart_tx_buffer[i++] = ptr[2];
+		uart_tx_buffer[i++] = ptr[3];
+		checksum += (ptr[1] << 8) | (ptr[0] << 0);
+		checksum += (ptr[3] << 8) | (ptr[2] << 0);
+	}
+
+	uart_tx_buffer[i++] = (checksum >> 0) & 0xFF;
+	uart_tx_buffer[i++] = (checksum >> 8) & 0xFF;
+
+	uart_tx_via_dma();
+
+	va_end(arglist);
+
+}
+
 /**
  * Effectively empties the TX buffer by placing a null character at position zero and resetting the pointer.
  */

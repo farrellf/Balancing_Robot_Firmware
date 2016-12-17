@@ -19,6 +19,7 @@
 void uart_setup(enum GPIO_PIN tx_pin, uint32_t baud);
 
 void uart_send_csv_floats(uint8_t count, float first_value, ...);
+void uart_send_bin_floats(uint8_t count, float first_value, ...);
 
 /**
  * Effectively empties the TX buffer by placing a null character at position zero and resetting the pointer.
