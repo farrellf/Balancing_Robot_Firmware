@@ -6,16 +6,18 @@
 #include "f0lib/f0lib_uart.h"
 #include "f0lib/f0lib_timers.h"
 #include "f0lib/f0lib_rf_cc2500.h"
+#include "f0lib/f0lib_gpio.h"
 
 #include "MadgwickAHRS.h"
 #include <math.h>
+#include <stdio.h>
 
 // variables written to by the CC2500 packet received handler
-float gimbalX = 0;
-float gimbalY = 0;
-float knobLeft = 0;
-float knobMiddle = 0;
-float knobRight = 0;
+volatile float gimbalX = 0;
+volatile float gimbalY = 0;
+volatile float knobLeft = 0;
+volatile float knobMiddle = 0;
+volatile float knobRight = 0;
 
 void process_new_sensor_values(float gyro_x, float gyro_y, float gyro_z, float accel_x, float accel_y, float accel_z, float magn_x, float magn_y, float magn_z) {
 
@@ -26,29 +28,48 @@ void process_new_sensor_values(float gyro_x, float gyro_y, float gyro_z, float a
 	// calculate the pitch angle so that:    0 = vertical    -pi/2 = on its back    +pi/2 = on its face
 	float pitch = asinf(-2.0f * (q1*q3 - q0*q2));
 
-	// update the motor speeds. if we're far from vertical, stop the motors since there is no chance of success.
-	int32_t motor_a_speed = 0;
-	int32_t motor_b_speed = 0;
+	// calculate the set point (desired angle) and error (difference between the current angle and desired angle)
+	// since there are no wheel encoders, only throttle affects the set point
+	// mapping throttle to an angle so that:  0 = no throttle    -pi/10 = full speed reverse    +pi/10 = full speed forward
+	float set_point = (float) gimbalY / 1400.0f * 0.314159265f;
+	float error = pitch - set_point;
 
-	if(pitch > -0.6f && pitch < 0.6f) {
+	// calculate the proportional component (current error * p scalar)
+	float p_scalar = 12000.0f + (knobLeft - 2048.0f) * 5.90f;
+	if(p_scalar < 0) p_scalar = 0;
+	float proportional = error * p_scalar;
 
-		// proportional component
-		motor_a_speed = pitch * 4500.0f;
-		motor_b_speed = pitch * 4500.0f;
+	// calculate the integral component (summation of past errors * i scalar)
+	float i_scalar = 500.0f + (knobMiddle - 2048.0f) * 0.27f;
+	if(i_scalar < 0) i_scalar = 0;
+	static float integral = 0;
+	integral += error * i_scalar;
+	if(integral >  1000) integral = 1000; // limit wind-up
+	if(integral < -1000) integral = -1000;
 
-		// apply throttle
-		motor_a_speed -= gimbalY;
-		motor_b_speed -= gimbalY;
+	// calculate the derivative component (change since previous error * d scalar)
+	static float previous_error = 0;
+	float d_scalar = 16000.0f + (knobRight - 2048.0f) * 7.85f;
+	if(d_scalar < 0) d_scalar = 0;
+	float derivative = (error - previous_error) * d_scalar;
+	previous_error = error;
 
-		// apply steering
-		motor_a_speed += gimbalX / 8;
-		motor_b_speed -= gimbalX / 8;
+	int32_t motor_a_speed = proportional + integral + derivative;
+	int32_t motor_b_speed = proportional + integral + derivative;
 
+	// apply steering
+	motor_a_speed += gimbalX / 2;
+	motor_b_speed -= gimbalX / 2;
+
+	// stop the motors if we're far from vertical since there is no chance of success
+	if(pitch < -0.7f || pitch > 0.7f) {
+		motor_a_speed = 0;
+		motor_b_speed = 0;
 	}
 
 	timer_dual_hbridge_motor_speeds(motor_a_speed, motor_b_speed);
 
-	uart_send_csv_floats(19,
+	uart_send_bin_floats(27,
 	                     accel_x, // G
 						 accel_y, // G
 						 accel_z, // G
@@ -67,7 +88,15 @@ void process_new_sensor_values(float gyro_x, float gyro_y, float gyro_z, float a
 						 gimbalY,
 						 knobLeft,
 						 knobMiddle,
-						 knobRight);
+						 knobRight,
+						 set_point,
+						 error,
+						 p_scalar,
+						 proportional,
+						 i_scalar,
+						 integral,
+						 d_scalar,
+						 derivative);
 
 }
 
